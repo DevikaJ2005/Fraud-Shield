@@ -1,0 +1,14 @@
+name: Model Cleanup
+
+on:
+  schedule:
+    - cron: "0 2 1 * *"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply model retention policy
+        run: echo "Keep active, latest 30, top 10 F1, and monthly best models."

@@ -1,0 +1,53 @@
+{
+  "model_version": "demo_xgboost",
+  "mode": "demo",
+  "dataset": "deterministic_paysim_style_sample",
+  "feature_schema_version": "v1",
+  "ordered_features": [
+    "amount",
+    "hour",
+    "day",
+    "is_mobile",
+    "velocity_1h",
+    "velocity_24h",
+    "graph_degree",
+    "graph_cluster",
+    "ring_detected",
+    "risk_propagation_score"
+  ],
+  "feature_count": 10,
+  "random_seed": 42,
+  "split": {
+    "type": "temporal",
+    "train_rows": 2000,
+    "test_rows": 500,
+    "train_start": "2026-01-01 00:00:00",
+    "train_end": "2026-01-14 21:10:00",
+    "test_start": "2026-01-14 21:20:00",
+    "test_end": "2026-01-18 08:30:00"
+  },
+  "baselines": {
+    "logistic_regression": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "false_positive_rate": 0.0
+    },
+    "random_forest": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "roc_auc": 1.0,
+      "false_positive_rate": 0.0
+    }
+  },
+  "metrics": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "false_positive_rate": 0.0
+  },
+  "serialization": "xgboost_native_json"
+}

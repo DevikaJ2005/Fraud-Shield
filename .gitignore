@@ -1,0 +1,46 @@
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.coverage
+htmlcov/
+
+# Frontend
+node_modules/
+dist/
+coverage/
+
+# Local data, credentials, and generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.crt
+credentials.json
+secrets.json
+service-account*.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
+
+# Trained model binaries
+*.xgb
+*.model
+*.pkl
+*.pickle
