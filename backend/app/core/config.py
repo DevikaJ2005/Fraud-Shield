@@ -20,12 +20,23 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     hf_model_repo: str | None = None
     active_model_path: str | None = Field(
-        default="training/artifacts/demo_xgboost.json",
+        default="models/demo_xgboost.json",
         validation_alias=AliasChoices("ACTIVE_MODEL_PATH", "MODEL_PATH"),
     )
-    model_metadata_path: str | None = Field(default=None, validation_alias=AliasChoices("MODEL_METADATA_PATH", "MODEL_METADATA"))
+    model_metadata_path: str | None = Field(
+        default="models/demo_xgboost.metadata.json",
+        validation_alias=AliasChoices("MODEL_METADATA_PATH", "MODEL_METADATA"),
+    )
     groq_api_key: str | None = None
     rate_limit_per_minute: int = Field(default=60, ge=1)
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173",
+        validation_alias=AliasChoices("CORS_ORIGINS", "ALLOWED_ORIGINS"),
+    )
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def project_root(self) -> Path:
@@ -42,6 +53,9 @@ class Settings(BaseSettings):
             Path.cwd() / raw_path,
             self.project_root / raw_path,
             self.project_root / "backend" / raw_path,
+            Path.cwd() / "models" / raw_path.name,
+            self.project_root / "models" / raw_path.name,
+            self.project_root / "backend" / "models" / raw_path.name,
         ]
         for candidate in candidates:
             if candidate.exists():

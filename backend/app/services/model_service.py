@@ -43,6 +43,21 @@ class ModelService:
             logger.error(self.last_error)
             return False
         model_path = settings.resolve_project_path(path)
+        metadata_path = self._metadata_path(model_path) if model_path else None
+        logger.info(
+            "model_env_detected",
+            extra={
+                "transaction_id": "",
+                "model_version": "",
+                "fraud_probability": None,
+                "severity": "",
+                "ring_detected": False,
+                "model_path_detected": bool(settings.active_model_path),
+                "model_metadata_path_detected": bool(settings.model_metadata_path),
+                "resolved_model_path_exists": bool(model_path and model_path.exists()),
+                "resolved_model_metadata_path_exists": bool(metadata_path and metadata_path.exists()),
+            },
+        )
         try:
             booster, metadata = self._load_candidate(model_path)
             explainer = shap.TreeExplainer(booster)

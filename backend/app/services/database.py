@@ -91,6 +91,7 @@ class DatabaseService:
         self._migration_compatible = False
         self._runtime_transactions: list[dict] = []
         self._runtime_alerts: list[dict] = []
+        self._runtime_feedback: list[dict] = []
 
     def client(self) -> Client | None:
         if self._client is not None:
@@ -184,6 +185,8 @@ class DatabaseService:
         }
 
     def storage_status(self) -> dict[str, Any]:
+        if not self._available:
+            self.verify_connection()
         status = self.status()
         return {
             "supabase_connected": status["available"],
@@ -191,6 +194,9 @@ class DatabaseService:
             "migration_compatible": status["migration_compatible"],
             "missing_tables": status["missing_tables"],
             "last_db_error": status["error"],
+            "runtime_transactions": len(self._runtime_transactions),
+            "runtime_alerts": len(self._runtime_alerts),
+            "runtime_feedback": len(self._runtime_feedback),
         }
 
     async def persist_prediction(self, tx: TransactionRequest, response: PredictionResponse) -> None:
@@ -250,9 +256,11 @@ class DatabaseService:
             logger.exception("Failed to persist graph relationships")
 
     async def persist_feedback(self, feedback: FeedbackRequest) -> None:
+        self._cache_feedback(feedback)
         client = self.client()
         if client is None:
-            raise RuntimeError("Supabase is not configured")
+            logger.warning("Supabase is not configured; feedback was stored in runtime cache")
+            return
         try:
             result = client.table("feedback").insert(feedback.model_dump()).execute()
             if not result.data:
@@ -263,8 +271,7 @@ class DatabaseService:
         except Exception as exc:
             self._available = False
             self._last_error = str(exc)
-            logger.exception("Failed to persist feedback for transaction %s", feedback.transaction_id)
-            raise
+            logger.exception("Failed to persist feedback for transaction %s; using runtime cache", feedback.transaction_id)
 
     def recent_transactions(self, limit: int = 50) -> list[dict]:
         client = self.client()
@@ -391,6 +398,18 @@ class DatabaseService:
                 },
             )
             self._runtime_alerts = self._runtime_alerts[:100]
+
+    def _cache_feedback(self, feedback: FeedbackRequest) -> None:
+        self._runtime_feedback.insert(
+            0,
+            {
+                "transaction_id": feedback.transaction_id,
+                "corrected_label": feedback.corrected_label,
+                "notes": feedback.notes,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        self._runtime_feedback = self._runtime_feedback[:100]
 
     def acknowledge_alert(self, alert_id: str) -> dict | None:
         acknowledged_at = datetime.now(timezone.utc).isoformat()

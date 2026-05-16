@@ -3,7 +3,24 @@ from pathlib import Path
 
 import pytest
 
+from app.core.config import Settings
 from app.services.model_service import ModelService
+
+
+def test_default_model_artifacts_resolve_inside_backend_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("ACTIVE_MODEL_PATH", "MODEL_PATH", "MODEL_METADATA_PATH", "MODEL_METADATA"):
+        monkeypatch.delenv(name, raising=False)
+    settings = Settings(_env_file=None)
+
+    model_path = settings.resolve_project_path(settings.active_model_path)
+    metadata_path = settings.resolve_project_path(settings.model_metadata_path)
+
+    assert model_path is not None
+    assert metadata_path is not None
+    assert model_path.as_posix().endswith("backend/models/demo_xgboost.json")
+    assert metadata_path.as_posix().endswith("backend/models/demo_xgboost.metadata.json")
+    assert model_path.exists()
+    assert metadata_path.exists()
 
 
 def test_model_schema_validation_rejects_feature_mismatch() -> None:
