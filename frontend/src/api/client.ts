@@ -1,15 +1,65 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://fraud-shield-production-991d.up.railway.app";
+const DEFAULT_API_BASE_URL = "https://fraud-shield-production-991d.up.railway.app";
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+const rawApiBaseUrl = configuredApiBaseUrl || DEFAULT_API_BASE_URL;
+const API_KEY = import.meta.env.VITE_API_KEY?.trim();
+
+function normalizeApiBaseUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      throw new Error(`Unsupported protocol: ${url.protocol}`);
+    }
+    return url.origin;
+  } catch (error) {
+    console.error("[FraudShield API] Malformed VITE_API_BASE_URL; using default Railway backend", {
+      configuredValue: value,
+      defaultValue: DEFAULT_API_BASE_URL,
+      error
+    });
+    return DEFAULT_API_BASE_URL;
+  }
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
+
+if (!API_KEY) {
+  console.warn("[FraudShield API] VITE_API_KEY is not configured; authenticated backend requests may fail.");
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers
-    }
-  });
+  const url = `${API_BASE_URL}${path}`;
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+  if (API_KEY) {
+    headers.set("X-API-Key", API_KEY);
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers
+    });
+  } catch (error) {
+    console.error("[FraudShield API] Fetch failed", {
+      url,
+      path,
+      apiBaseUrl: API_BASE_URL,
+      apiKeyConfigured: Boolean(API_KEY),
+      error
+    });
+    throw error;
+  }
 
   if (!response.ok) {
+    console.error("[FraudShield API] HTTP request failed", {
+      url,
+      path,
+      status: response.status,
+      statusText: response.statusText,
+      authFailure: response.status === 401 || response.status === 403,
+      apiKeyConfigured: Boolean(API_KEY)
+    });
     throw new Error(`Request failed: ${response.status}`);
   }
 
@@ -20,6 +70,12 @@ export type ModelStatus = {
   model_version: string;
   feature_schema_version: string;
   status: string;
+};
+
+export type HealthStatus = {
+  status: string;
+  model: string;
+  supabase: string;
 };
 
 export type GraphPayload = {
@@ -82,6 +138,7 @@ export type PredictionResponse = {
 };
 
 export const api = {
+  health: () => request<HealthStatus>("/api/v1/health"),
   modelStatus: () => request<ModelStatus>("/api/v1/model/status"),
   graph: () => request<GraphPayload>("/api/v1/graph/current"),
   alerts: () => request<Alert[]>("/api/v1/alerts"),

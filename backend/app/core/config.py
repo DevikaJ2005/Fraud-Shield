@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import ClassVar
 
 from pathlib import Path
 
@@ -7,6 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    PRODUCTION_FRONTEND_ORIGINS: ClassVar[tuple[str, ...]] = (
+        "https://fraud-shield-blue.vercel.app",
+    )
+
     model_config = SettingsConfigDict(
         env_file=(".env", "backend/.env"),
         extra="ignore",
@@ -30,13 +35,17 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     rate_limit_per_minute: int = Field(default=60, ge=1)
     cors_origins: str = Field(
-        default="http://localhost:5173,http://127.0.0.1:5173",
+        default="http://localhost:5173,http://127.0.0.1:5173,https://fraud-shield-blue.vercel.app",
         validation_alias=AliasChoices("CORS_ORIGINS", "ALLOWED_ORIGINS"),
     )
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        for origin in self.PRODUCTION_FRONTEND_ORIGINS:
+            if origin not in origins:
+                origins.append(origin)
+        return origins
 
     @property
     def project_root(self) -> Path:
