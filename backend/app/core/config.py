@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    DEFAULT_VERCEL_ORIGIN_REGEX: ClassVar[str] = r"^https://[a-z0-9-]+\.vercel\.app$"
     PRODUCTION_FRONTEND_ORIGINS: ClassVar[tuple[str, ...]] = (
         "https://fraud-shield-blue.vercel.app",
     )
@@ -38,6 +39,10 @@ class Settings(BaseSettings):
         default="http://localhost:5173,http://127.0.0.1:5173,https://fraud-shield-blue.vercel.app",
         validation_alias=AliasChoices("CORS_ORIGINS", "ALLOWED_ORIGINS"),
     )
+    cors_origin_regex: str = Field(
+        default=DEFAULT_VERCEL_ORIGIN_REGEX,
+        validation_alias=AliasChoices("CORS_ORIGIN_REGEX", "ALLOWED_ORIGIN_REGEX"),
+    )
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -46,6 +51,10 @@ class Settings(BaseSettings):
             if origin not in origins:
                 origins.append(origin)
         return origins
+
+    @property
+    def allowed_origin_regex(self) -> str:
+        return self.cors_origin_regex.strip() or self.DEFAULT_VERCEL_ORIGIN_REGEX
 
     @property
     def project_root(self) -> Path:
