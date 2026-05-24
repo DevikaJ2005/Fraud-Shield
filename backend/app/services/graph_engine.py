@@ -30,23 +30,20 @@ class GraphEngine:
         self._graph.add_node(ip_address, type="ip", last_seen=tx.timestamp)
         self._graph.add_node(transaction, type="transaction", last_seen=tx.timestamp)
 
-        self._graph.add_edge(account, transaction, type="account_transaction")
-        self._graph.add_edge(transaction, merchant, type="transaction_merchant")
-        self._graph.add_edge(account, device, type="account_device")
-        self._graph.add_edge(device, account, type="device_account")
-        self._graph.add_edge(account, ip_address, type="account_ip")
-        self._graph.add_edge(ip_address, account, type="ip_account")
-        self._latest_relationships = self._relationships(
-            tx,
-            [
-                (account, "account", "account_transaction", transaction, "transaction"),
-                (transaction, "transaction", "transaction_merchant", merchant, "merchant"),
-                (account, "account", "account_device", device, "device"),
-                (device, "device", "device_account", account, "account"),
-                (account, "account", "account_ip", ip_address, "ip"),
-                (ip_address, "ip", "ip_account", account, "account"),
-            ],
-        )
+        edge_rows = [
+            (account, "account", "account_transaction", transaction, "transaction"),
+            (transaction, "transaction", "transaction_merchant", merchant, "merchant"),
+            (account, "account", "account_device", device, "device"),
+            (device, "device", "device_account", account, "account"),
+            (account, "account", "account_ip", ip_address, "ip"),
+            (ip_address, "ip", "ip_account", account, "account"),
+        ]
+        new_edge_rows = []
+        for source, source_type, edge_type, target, target_type in edge_rows:
+            if not self._graph.has_edge(source, target):
+                new_edge_rows.append((source, source_type, edge_type, target, target_type))
+            self._graph.add_edge(source, target, type=edge_type)
+        self._latest_relationships = self._relationships(tx, new_edge_rows)
 
         undirected = self._graph.to_undirected()
         component_nodes = nx.node_connected_component(undirected, account)

@@ -11,6 +11,7 @@ from app.services.graph_engine import GraphEngine
 from app.services.model_service import FEATURE_SCHEMA_VERSION, ModelService
 from app.services.narration import deterministic_narration
 from app.services.pattern_engine import PatternEngine
+from simulator import simulator_service
 
 router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_api_key)])
 logger = logging.getLogger(__name__)
@@ -122,3 +123,21 @@ async def health() -> dict[str, str]:
 async def storage_status(request: Request) -> dict:
     enforce_rate_limit(request)
     return database.storage_status()
+
+
+@router.post("/simulator/start")
+async def simulator_start(request: Request) -> dict:
+    enforce_rate_limit(request)
+    return await simulator_service.start()
+
+
+@router.post("/simulator/stop")
+async def simulator_stop(request: Request) -> dict:
+    enforce_rate_limit(request)
+    return await simulator_service.stop()
+
+
+@router.get("/simulator/status")
+async def simulator_status(request: Request) -> dict:
+    enforce_rate_limit(request)
+    return simulator_service.status()

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import database, model_service, router
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
+from simulator import simulator_service
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -21,10 +22,11 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-API-Key"],
 )
 app.include_router(router)
+simulator_service.configure(app)
 
 
 @app.on_event("startup")
-def startup() -> None:
+async def startup() -> None:
     settings = get_settings()
     model_path = settings.resolve_project_path(settings.active_model_path)
     metadata_path = settings.resolve_project_path(settings.model_metadata_path)
@@ -47,3 +49,10 @@ def startup() -> None:
     model_service.load()
     database.verify_connection()
     database.register_active_model(settings.active_model_path)
+    if settings.simulator_enabled:
+        await simulator_service.start()
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    await simulator_service.stop()

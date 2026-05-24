@@ -137,6 +137,21 @@ export type PredictionResponse = {
   narration: string;
 };
 
+export type SimulatorStatus = {
+  running: boolean;
+  generated_count: number;
+  fraud_count: number;
+  failed_count: number;
+  last_transaction_id: string | null;
+  last_scenario: string | null;
+  last_error: string | null;
+  started_at: string | null;
+  stopped_at: string | null;
+  recent_scenarios: string[];
+  traffic_interval_seconds: [number, number];
+  scenario_catalog: string[];
+};
+
 export const api = {
   health: () => request<HealthStatus>("/api/v1/health"),
   modelStatus: () => request<ModelStatus>("/api/v1/model/status"),
@@ -144,6 +159,9 @@ export const api = {
   alerts: () => request<Alert[]>("/api/v1/alerts"),
   transactions: () => request<TransactionSummary[]>("/api/v1/transactions"),
   intelligence: () => request<Array<{ title: string; summary: string }>>("/api/v1/fraud-intelligence"),
+  simulatorStatus: () => request<SimulatorStatus>("/api/v1/simulator/status"),
+  startSimulator: () => request<SimulatorStatus>("/api/v1/simulator/start", { method: "POST" }),
+  stopSimulator: () => request<SimulatorStatus>("/api/v1/simulator/stop", { method: "POST" }),
   predict: (payload: PredictionRequest) =>
     request<PredictionResponse>("/api/v1/predict", {
       method: "POST",

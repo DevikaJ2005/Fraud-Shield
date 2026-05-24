@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     )
     groq_api_key: str | None = None
     rate_limit_per_minute: int = Field(default=60, ge=1)
+    simulator_enabled: bool = Field(default=True, validation_alias=AliasChoices("SIMULATOR_ENABLED", "ENABLE_SIMULATOR"))
+    simulator_api_key: str | None = Field(default=None, validation_alias=AliasChoices("SIMULATOR_API_KEY", "API_KEY"))
+    simulator_min_interval_seconds: float = Field(default=2.0, ge=0.5)
+    simulator_max_interval_seconds: float = Field(default=5.0, ge=0.5)
     cors_origins: str = Field(
         default="http://localhost:5173,http://127.0.0.1:5173,https://fraud-shield-blue.vercel.app",
         validation_alias=AliasChoices("CORS_ORIGINS", "ALLOWED_ORIGINS"),
