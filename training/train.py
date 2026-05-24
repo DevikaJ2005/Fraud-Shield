@@ -1,8 +1,10 @@
-"""Training entrypoints for FraudShield.
+"""Legacy training entrypoints for FraudShield.
 
-Production training should run inside Kaggle and publish approved XGBoost
-artifacts to Hugging Face Hub. The demo training path creates a deterministic,
-PaySim-style sample dataset for local MVP validation without fake predictions.
+For governed training, use:
+
+    python -m training.pipeline.cli --dataset demo_paysim
+
+This legacy module remains for deterministic demo artifact regeneration.
 """
 
 from __future__ import annotations
