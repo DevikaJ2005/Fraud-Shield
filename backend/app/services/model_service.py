@@ -73,6 +73,46 @@ class ModelService:
         logger.info("Loaded model %s with feature schema %s", self.model_version, FEATURE_SCHEMA_VERSION)
         return True
 
+    def activate_candidate(self, model_path: Path, metadata_path: Path) -> dict:
+        previous_version = self.model_version
+        try:
+            booster, metadata = self._load_candidate(model_path, metadata_path)
+            explainer = shap.TreeExplainer(booster)
+            self._validate_shap_compatibility(explainer)
+        except Exception as exc:
+            self.last_error = str(exc)
+            logger.error(
+                "model_activation_failed",
+                extra={
+                    "transaction_id": "",
+                    "model_version": previous_version,
+                    "fraud_probability": None,
+                    "severity": "",
+                    "ring_detected": False,
+                    "candidate_model_path": str(model_path),
+                    "candidate_metadata_path": str(metadata_path),
+                    "activation_error": str(exc),
+                },
+            )
+            return {"activated": False, "active_model_version": previous_version, "error": str(exc)}
+
+        self._model = booster
+        self._explainer = explainer
+        self.model_version = metadata.get("model_version", model_path.stem)
+        self.last_error = None
+        logger.info(
+            "model_activation_succeeded",
+            extra={
+                "transaction_id": "",
+                "model_version": self.model_version,
+                "fraud_probability": None,
+                "severity": "",
+                "ring_detected": False,
+                "previous_model_version": previous_version,
+            },
+        )
+        return {"activated": True, "active_model_version": self.model_version, "previous_model_version": previous_version}
+
     def predict(self, tx: TransactionRequest, patterns: list[PatternFlag], graph: GraphAnalysis) -> tuple[float, float, list[ShapExplanation]]:
         if self._model is None:
             raise HTTPException(
@@ -140,11 +180,11 @@ class ModelService:
             for name, value in ranked
         ]
 
-    def _load_candidate(self, model_path: Path | None) -> tuple[xgb.Booster, dict]:
+    def _load_candidate(self, model_path: Path | None, metadata_path: Path | None = None) -> tuple[xgb.Booster, dict]:
         if model_path is None or not model_path.exists() or model_path.suffix not in {".json", ".ubj"}:
             raise RuntimeError("Active model must be an XGBoost native JSON or UBJ artifact")
 
-        metadata_path = self._metadata_path(model_path)
+        metadata_path = metadata_path or self._metadata_path(model_path)
         if metadata_path is None or not metadata_path.exists():
             raise RuntimeError("Model metadata is required for schema validation")
 
@@ -156,6 +196,16 @@ class ModelService:
         if booster.feature_names and booster.feature_names != ORDERED_FEATURES:
             raise RuntimeError("Model feature order does not match inference feature schema")
         return booster, metadata
+
+    @staticmethod
+    def _validate_shap_compatibility(explainer: shap.TreeExplainer) -> None:
+        values = np.zeros((1, len(ORDERED_FEATURES)))
+        shap_values = explainer.shap_values(values)
+        row = np.asarray(shap_values)
+        if row.ndim == 1:
+            row = row.reshape(1, -1)
+        if row.shape != (1, len(ORDERED_FEATURES)):
+            raise RuntimeError(f"SHAP output shape {row.shape} does not match feature schema")
 
     @staticmethod
     def _metadata_path(model_path: Path) -> Path | None:
@@ -174,3 +224,9 @@ class ModelService:
             raise RuntimeError("Model feature count is incompatible")
         if metadata.get("serialization") != "xgboost_native_json":
             raise RuntimeError("Model serialization metadata is incompatible")
+        approval = metadata.get("approval")
+        if approval is not None and not approval.get("approved"):
+            raise RuntimeError("Model metadata is not approved for activation")
+        shap_compatibility = metadata.get("shap_compatibility")
+        if shap_compatibility is not None and not shap_compatibility.get("compatible"):
+            raise RuntimeError("Model metadata is not SHAP compatible")

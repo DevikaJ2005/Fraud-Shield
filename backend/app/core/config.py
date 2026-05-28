@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     hf_model_repo: str | None = None
+    hf_token: str | None = None
+    model_cache_dir: str = Field(default="backend/model_cache", validation_alias=AliasChoices("MODEL_CACHE_DIR", "MODEL_CACHE_PATH"))
     active_model_path: str | None = Field(
         default="models/demo_xgboost.json",
         validation_alias=AliasChoices("ACTIVE_MODEL_PATH", "MODEL_PATH"),

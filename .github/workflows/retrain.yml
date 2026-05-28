@@ -1,8 +1,6 @@
 name: Daily Retraining
 
 on:
-  schedule:
-    - cron: "30 20 * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,5 +8,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Trigger Kaggle training notebook
-        run: echo "Configure Kaggle API trigger here; production training must run in Kaggle."
+      - name: Future Kaggle training hook
+        run: echo "Manual placeholder only; automatic retraining is intentionally disabled."

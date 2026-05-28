@@ -359,6 +359,51 @@ class DatabaseService:
             self._last_error = str(exc)
             logger.exception("Failed to register active model")
 
+    def register_model_metadata(self, metadata: dict, activate: bool = True) -> None:
+        client = self.client()
+        if client is None:
+            return
+        if not self._available or not self._migration_compatible:
+            logger.warning("Skipping model metadata registry write because Supabase is unavailable or migration-incompatible")
+            return
+        try:
+            if activate:
+                client.table("model_registry").update({"is_active": False}).eq("is_active", True).execute()
+            client.table("model_registry").upsert(
+                {
+                    "model_version": metadata["model_version"],
+                    "feature_schema_version": metadata["feature_schema_version"],
+                    "ordered_features": metadata["ordered_features"],
+                    "feature_count": metadata["feature_count"],
+                    "preprocessing_config": {
+                        "mode": metadata.get("mode"),
+                        "dataset": metadata.get("dataset"),
+                        "random_seed": metadata.get("random_seed"),
+                        "split": metadata.get("split"),
+                        "shap_compatibility": metadata.get("shap_compatibility"),
+                        "approval": metadata.get("approval"),
+                    },
+                    "metrics": metadata["metrics"],
+                    "is_active": activate,
+                    "deployed_at": datetime.now(timezone.utc).isoformat() if activate else None,
+                },
+                on_conflict="model_version",
+            ).execute()
+            logger.info(
+                "model_registry_updated",
+                extra={
+                    "transaction_id": "",
+                    "model_version": metadata["model_version"],
+                    "fraud_probability": None,
+                    "severity": "",
+                    "ring_detected": False,
+                },
+            )
+        except Exception as exc:
+            self._available = False
+            self._last_error = str(exc)
+            logger.exception("Failed to register model metadata")
+
     def _cache_prediction(self, tx: TransactionRequest, response: PredictionResponse) -> None:
         self._runtime_transactions.insert(
             0,

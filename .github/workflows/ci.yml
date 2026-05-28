@@ -1,0 +1,62 @@
+name: FraudShield CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend-training:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+      - name: Compile backend and training modules
+        run: python -m compileall backend/app backend/simulator training
+      - name: Run backend tests
+        env:
+          PYTHONPATH: .:backend
+        run: python -m pytest backend/tests
+      - name: Validate runtime and training feature schema match
+        env:
+          PYTHONPATH: .:backend
+        run: |
+          python - <<'PY'
+          from app.services.model_service import FEATURE_SCHEMA_VERSION as runtime_version, ORDERED_FEATURES as runtime_features
+          from training.pipeline.schema import FEATURE_SCHEMA_VERSION as training_version, ORDERED_FEATURES as training_features
+          assert runtime_version == training_version
+          assert runtime_features == training_features
+          PY
+      - name: Validate bundled model metadata
+        env:
+          PYTHONPATH: .:backend
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from app.services.model_service import ModelService
+          for path in [Path("backend/models/demo_xgboost.metadata.json"), Path("training/artifacts/demo_xgboost.metadata.json")]:
+              ModelService._validate_metadata(json.loads(path.read_text(encoding="utf-8")))
+          PY
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build

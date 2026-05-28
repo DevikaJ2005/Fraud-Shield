@@ -8,6 +8,7 @@ from app.schemas.transaction import FeedbackRequest, PredictionResponse, Transac
 from app.services.alerts import severity_for
 from app.services.database import DatabaseService
 from app.services.graph_engine import GraphEngine
+from app.services.model_lifecycle import ModelLifecycleService
 from app.services.model_service import FEATURE_SCHEMA_VERSION, ModelService
 from app.services.narration import deterministic_narration
 from app.services.pattern_engine import PatternEngine
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 pattern_engine = PatternEngine()
 graph_engine = GraphEngine()
 model_service = ModelService()
+model_lifecycle = ModelLifecycleService(model_service)
 database = DatabaseService()
 
 
@@ -86,6 +88,36 @@ async def model_status(request: Request) -> dict[str, str]:
         "status": "available" if model_service._model is not None else "unavailable",
         "last_error": model_service.last_error or "",
     }
+
+
+@router.get("/models/lifecycle/status")
+async def model_lifecycle_status(request: Request) -> dict:
+    enforce_rate_limit(request)
+    return model_lifecycle.status()
+
+
+@router.get("/models/remote")
+async def remote_models(request: Request) -> list[dict]:
+    enforce_rate_limit(request)
+    return model_lifecycle.list_remote_versions()
+
+
+@router.post("/models/activate/{model_version}")
+async def activate_remote_model(model_version: str, request: Request) -> dict:
+    enforce_rate_limit(request)
+    result = model_lifecycle.activate_remote(model_version)
+    if result.get("activated") and model_lifecycle.active_cached:
+        database.register_model_metadata(model_lifecycle.active_cached.metadata, activate=True)
+    return result
+
+
+@router.post("/models/rollback")
+async def rollback_model(request: Request) -> dict:
+    enforce_rate_limit(request)
+    result = model_lifecycle.rollback()
+    if result.get("rolled_back") and model_lifecycle.previous_active:
+        database.register_model_metadata(model_lifecycle.previous_active.metadata, activate=True)
+    return result
 
 
 @router.get("/alerts")

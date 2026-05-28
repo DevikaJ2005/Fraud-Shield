@@ -40,6 +40,8 @@ desktop.ini
 *.log
 
 # Trained model binaries
+backend/model_cache/
+training/artifacts/candidates/
 *.xgb
 *.model
 *.pkl
